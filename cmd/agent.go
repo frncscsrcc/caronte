@@ -45,7 +45,7 @@ to quickly create a Cobra application.`,
 			ServerPort:     serverPort,
 			ServerSecret:   clientSecret,
 			TargetProtocol: targetProtocol,
-			TargetHost:     targetHost,
+			TargetHost:     "localhost",
 			TargetPort:     targetPort,
 			Code:           code,
 			Timeout:        agentTimeout,
@@ -60,7 +60,7 @@ func init() {
 	agentCmd.Flags().StringVar(&serverPort, "server-port", "8080", "Server port")
 
 	agentCmd.Flags().StringVar(&targetProtocol, "target-protocol", "http", "Server protocol")
-	agentCmd.Flags().StringVar(&targetHost, "target-host", "localhost", "Server host")
+	//agentCmd.Flags().StringVar(&targetHost, "target-host", "localhost", "Server host")
 	agentCmd.Flags().StringVar(&targetPort, "target-port", "8080", "Server port")
 
 	agentCmd.Flags().StringVar(&code, "code", "", "Uniq resource identifier")
