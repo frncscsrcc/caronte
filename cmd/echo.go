@@ -46,19 +46,19 @@ func handleRequest() {
 }
 
 func ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Print("Received request")
+	log.Print("New Request")
 	log.Print("Method: " + r.Method)
 	log.Print("Path: " + r.URL.Path)
+	log.Print("Headers:")
 	for name, values := range r.Header {
 		for _, value := range values {
-			log.Printf("Header: %s -> %s\n", name, value)
+			log.Printf("\t%s: %s\n", name, value)
 		}
 	}
-
 	buf := new(strings.Builder)
 	io.Copy(buf, r.Body)
 	r.Body.Close()
-	log.Print(buf.String())
-
+	log.Print("Body:")
+	log.Print("\t", buf.String())
 	log.Print("-------------")
 }
