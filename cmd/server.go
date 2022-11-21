@@ -1,6 +1,5 @@
 /*
 Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
@@ -43,5 +42,5 @@ func init() {
 	serverCmd.Flags().StringVar(&port, "port", "8080", "listening port")
 	serverCmd.Flags().IntVar(&maxTimeout, "max-timeout", 120, "max timeout allowed server side")
 	serverCmd.Flags().IntVar(&bufferSize, "buffer", 5, "max number of buffered requests, per resource")
-	serverCmd.Flags().StringVar(&secret, "secret", "", "max number of buffered requests, per resource")
+	serverCmd.Flags().StringVar(&secret, "secret", "", "Instance secret")
 }

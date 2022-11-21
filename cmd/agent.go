@@ -1,6 +1,5 @@
 /*
 Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
@@ -18,6 +17,7 @@ var serverPort string
 var targetProtocol string
 var targetHost string
 var targetPort string
+var targetSendReply bool
 
 var code string
 var clientSecret string
@@ -40,15 +40,16 @@ to quickly create a Cobra application.`,
 		}
 
 		agent.Run(agent.Config{
-			ServerProtocol: serverProtocol,
-			ServerHost:     serverHost,
-			ServerPort:     serverPort,
-			ServerSecret:   clientSecret,
-			TargetProtocol: targetProtocol,
-			TargetHost:     "localhost",
-			TargetPort:     targetPort,
-			Code:           code,
-			Timeout:        agentTimeout,
+			ServerProtocol:  serverProtocol,
+			ServerHost:      serverHost,
+			ServerPort:      serverPort,
+			ServerSecret:    clientSecret,
+			TargetProtocol:  targetProtocol,
+			TargetHost:      "localhost",
+			TargetPort:      targetPort,
+			TargetSendReply: targetSendReply,
+			Code:            code,
+			Timeout:         agentTimeout,
 		})
 	},
 }
@@ -62,6 +63,7 @@ func init() {
 	agentCmd.Flags().StringVar(&targetProtocol, "target-protocol", "http", "Server protocol")
 	//agentCmd.Flags().StringVar(&targetHost, "target-host", "localhost", "Server host")
 	agentCmd.Flags().StringVar(&targetPort, "target-port", "8080", "Server port")
+	agentCmd.Flags().BoolVar(&targetSendReply, "send-reply", false, "Allow the agent to send the replies to the caller")
 
 	agentCmd.Flags().StringVar(&code, "code", "", "Uniq resource identifier")
 	agentCmd.Flags().StringVar(&clientSecret, "secret", "", "Client secret")

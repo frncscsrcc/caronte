@@ -1,10 +1,10 @@
 /*
 Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -53,12 +53,14 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for name, values := range r.Header {
 		for _, value := range values {
 			log.Printf("\t%s: %s\n", name, value)
+			w.Header().Add(name, value)
 		}
 	}
 	buf := new(strings.Builder)
 	io.Copy(buf, r.Body)
-	r.Body.Close()
 	log.Print("Body:")
 	log.Print("\t", buf.String())
 	log.Print("-------------")
+	fmt.Fprint(w, "This is the body of the echo reply!")
+	r.Body.Close()
 }
