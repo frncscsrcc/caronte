@@ -12,10 +12,10 @@ import (
 )
 
 type Config struct {
-	ServerSecret    string
-	ServerHost      string
-	ServerPort      string
-	ServerProtocol  string
+	Secret          string
+	ProxyHost       string
+	ProxyPort       string
+	ProxyProtocol   string
 	Timeout         int
 	TargetHost      string
 	TargetPort      string
@@ -26,25 +26,25 @@ type Config struct {
 
 var agentConfig Config
 
-func getServerURL() string {
-	return fmt.Sprintf("%s://%s:%s", agentConfig.ServerProtocol, agentConfig.ServerHost, agentConfig.ServerPort)
+func getProxyURL() string {
+	return fmt.Sprintf("%s://%s:%s", agentConfig.ProxyProtocol, agentConfig.ProxyHost, agentConfig.ProxyPort)
 }
 
 func Run(config Config) {
 	agentConfig = config
 
-	serverURL := getServerURL()
+	serverURL := getProxyURL()
 
-	log.Printf("Agent connecting to %s", serverURL)
+	log.Printf("Agent connecting to the proxy %s", serverURL)
 	for {
 		req, _ := http.NewRequest("GET", serverURL+"/pull/"+agentConfig.Code, new(bytes.Buffer))
 
 		req.Header.Set("X-TIMEOUT", fmt.Sprintf("%d", agentConfig.Timeout))
-		req.Header.Set("Authorization", "Bearer: "+agentConfig.ServerSecret)
+		req.Header.Set("Authorization", "Bearer: "+agentConfig.Secret)
 
-		serverResponse, err := http.DefaultClient.Do(req)
+		proxyResponse, err := http.DefaultClient.Do(req)
 
-		if serverResponse.StatusCode == http.StatusRequestTimeout {
+		if proxyResponse.StatusCode == http.StatusRequestTimeout {
 			continue
 		}
 
@@ -52,11 +52,11 @@ func Run(config Config) {
 			log.Print("ERROR: " + err.Error())
 		}
 
-		if err != nil || serverResponse.StatusCode != http.StatusOK {
+		if err != nil || proxyResponse.StatusCode != http.StatusOK {
+			log.Printf("Proxy responded %d, trying again in 5 sec...", proxyResponse.StatusCode)
 			time.Sleep(5 * time.Second)
-			log.Printf("Agent connecting to %s [status=%d]", serverURL, serverResponse.StatusCode)
 		} else {
-			handleServerResponse(serverResponse)
+			handleServerResponse(proxyResponse)
 		}
 	}
 
@@ -85,7 +85,7 @@ func handleServerResponse(r *http.Response) error {
 		}
 	}
 
-	log.Printf("Forwarding request to %s\n", url)
+	log.Printf("Forwarding request to the target %s\n", url)
 
 	response, errReq := http.DefaultClient.Do(req)
 	if errReq != nil {
@@ -103,7 +103,7 @@ func handleServerResponse(r *http.Response) error {
 func forwardAck(responceReference string) error {
 	req, _ := http.NewRequest(
 		"POST",
-		getServerURL()+"/forward_response/"+agentConfig.Code,
+		getProxyURL()+"/forward_response/"+agentConfig.Code,
 		bytes.NewBuffer([]byte{}),
 	)
 	req.Header.Set("X-RESPONSE-REFERENCE", responceReference)
@@ -113,14 +113,14 @@ func forwardAck(responceReference string) error {
 }
 
 func forwardResponse(responceReference string, response *http.Response) error {
-	log.Printf("Sending reply to %s", getServerURL()+"/forward_response/"+agentConfig.Code)
+	log.Printf("Forwarding the response to the proxy %s", getProxyURL()+"/forward_response/"+agentConfig.Code)
 
 	body, err := ioutil.ReadAll(response.Body)
 	response.Body.Close()
 
 	req, _ := http.NewRequest(
 		"POST",
-		getServerURL()+"/forward_response/"+agentConfig.Code,
+		getProxyURL()+"/forward_response/"+agentConfig.Code,
 		bytes.NewBuffer(body),
 	)
 	req.Header.Set("X-RESPONSE-REFERENCE", responceReference)
@@ -130,14 +130,10 @@ func forwardResponse(responceReference string, response *http.Response) error {
 			req.Header.Set(name, value)
 		}
 	}
-	serverResponse, err := http.DefaultClient.Do(req)
+	_, sendError := http.DefaultClient.Do(req)
 
-	if err != nil {
+	if sendError != nil {
 		return err
 	}
-
-	Skip(serverResponse)
 	return nil
 }
-
-func Skip(x interface{}) {}

@@ -1,4 +1,4 @@
-module webhookme
+module caronte
 
 go 1.17
 

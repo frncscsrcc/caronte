@@ -1,10 +1,9 @@
 /*
 Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
 */
 package main
 
-import "webhookme/cmd"
+import "caronte/cmd"
 
 func main() {
 	cmd.Execute()

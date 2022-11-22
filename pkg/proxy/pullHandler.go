@@ -1,4 +1,4 @@
-package server
+package proxy
 
 import (
 	"fmt"
@@ -12,21 +12,29 @@ import (
 func (l *Listener) handlePullRequest(code string, w http.ResponseWriter, r *http.Request) {
 	log.Print("Pull request " + r.URL.Path)
 
+	if !authorize(r) {
+		time.Sleep(2 * time.Second)
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Print("Rejecting unautorized request")
+		return
+	}
+
 	// check if a channel for this client already exists
 	if busy, exists := l.Busy[code]; exists && busy {
-		fmt.Fprint(w, "busy")
+		w.WriteHeader(http.StatusTooManyRequests)
+		fmt.Fprint(w, "Too Many Requests")
 		return
 	}
 
 	channel, channelExists := l.CodeToPullRequestChannel[code]
 	if !channelExists {
-		channel = make(chan *http.Request, ServerConfig.BufferSize)
+		channel = make(chan *http.Request, proxyConfig.BufferSize)
 		l.CodeToPullRequestChannel[code] = channel
 	}
 	l.Busy[code] = true
 	defer func() { l.Busy[code] = false }()
 
-	waitTime := time.Duration(ServerConfig.MaxTimeout) * time.Second
+	waitTime := time.Duration(proxyConfig.MaxTimeoutLongPoll) * time.Second
 
 	if headerTimeoutString := r.Header.Get("X-TIMEOUT"); headerTimeoutString != "" {
 		if timeoutInt, err := strconv.Atoi(headerTimeoutString); err == nil {
@@ -39,12 +47,7 @@ func (l *Listener) handlePullRequest(code string, w http.ResponseWriter, r *http
 }
 
 func waitForData(waitTime time.Duration, triggerChannel <-chan *http.Request, w http.ResponseWriter) {
-	timeout := getTimeout(waitTime)
-
-	go func(timeout chan struct{}) {
-		time.Sleep(10 * time.Second)
-		timeout <- struct{}{}
-	}(timeout)
+	timeout := getTimeoutChannel(waitTime)
 
 	select {
 	case request := <-triggerChannel:

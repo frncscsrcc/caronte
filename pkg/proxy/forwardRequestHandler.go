@@ -1,4 +1,4 @@
-package server
+package proxy
 
 import (
 	"io"
@@ -19,9 +19,9 @@ func (l *Listener) getResponseSentChannel(responseReference string) chan struct{
 }
 
 func (l *Listener) handleForwardRequest(code string, w http.ResponseWriter, r *http.Request) {
-	log.Print("Trigger " + r.URL.Path)
+	log.Print("Received a trigger " + r.URL.Path)
 
-	timeout := getTimeout(2 * time.Second)
+	responseTimeout := getTimeoutChannel(time.Duration(proxyConfig.MaxTimeoutResponse) * time.Second)
 	if triggerChannel, exists := l.CodeToPullRequestChannel[code]; !exists {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -38,9 +38,6 @@ func (l *Listener) handleForwardRequest(code string, w http.ResponseWriter, r *h
 		log.Printf("Sent request to %s waiting for response [id=%s]", getOriginalPath(r), responseReference)
 
 		select {
-		// -----------------------------------------------------------
-		// -----------------------------------------------------------
-		// -----------------------------------------------------------
 		case response := <-responseChannel:
 			log.Printf("Received response for %s", responseReference)
 
@@ -63,7 +60,7 @@ func (l *Listener) handleForwardRequest(code string, w http.ResponseWriter, r *h
 			responseSentChannel <- struct{}{}
 
 			break
-		case <-timeout:
+		case <-responseTimeout:
 			log.Printf("timeout for %s", responseReference)
 			w.WriteHeader(http.StatusRequestTimeout)
 			break

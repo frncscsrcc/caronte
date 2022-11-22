@@ -1,4 +1,4 @@
-package server
+package proxy
 
 import (
 	"math/rand" // todo: use crypto library
@@ -11,7 +11,12 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func getTimeout(d time.Duration) chan struct{} {
+func authorize(r *http.Request) bool {
+	receivedSecret := r.Header.Get("Authorization")
+	return receivedSecret == "Bearer: "+proxyConfig.Secret
+}
+
+func getTimeoutChannel(d time.Duration) chan struct{} {
 	timeout := make(chan struct{})
 	go func() {
 		time.Sleep(d)
