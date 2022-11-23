@@ -25,7 +25,7 @@ Run the example echo service; this service listens listen on the port 5000 and s
 
 Run the proxy in a network that accept connections from the outside
 ```
-./carone proxy --secret SECRET
+./caronte proxy --secret SECRET
 ```
 
 In the same machine that runs the echo server run the agent and connect it to the proxy
