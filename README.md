@@ -7,6 +7,13 @@ The two main componets of this application are:
 - *agent*: it runs as a standalone application inside the network which blocks traffic from the outside. Using long-poll HTTP requests, it connects to the *proxy* and it waits for instruction. When the proxy receives a request, it "forward" it to the agent and the agent "forward" it to the target system. If this feature is enabled, when the target replies, the agent will forward back the response to the proxy, unsing a new connection, and the proxy will forward it back to the external caller.
 - *proxy*: it runs as a standalone application outside the network which bliocks traffic from the outside. It mantains a connection with one or more *agents* and it exponsed a public REST endpoint. When it receives a request from an external caller, it forward it to the correct agent and it mantains open the connection with the calle until the agent forwards back the reply from the target.
 
+Build:
+---
+
+```
+go build -o caronte main.go
+```
+
 Example:
 ---
 
