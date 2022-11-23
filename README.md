@@ -46,4 +46,4 @@ The flow of data can be summarised as
 REQUESTER -> PROXY -> AGENT -> TARGET -> AGENT -> PROXY -> REQUESTER
 ```
 
-In reality all the connections between proxy and agents are initiated and maintained by the agents (as outbound HTTP requests).
+In reality all the connections between the proxy and agents are initiated and maintained by the agents (as outbound HTTP requests) and they are formally asynchronous, but from the requester prespective it is juas a synchronous call.
