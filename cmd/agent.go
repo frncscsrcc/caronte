@@ -20,7 +20,7 @@ var targetHost string
 var targetPort string
 var targetSendReply bool
 
-var code string
+var agentCode string
 var agentSecret string
 var agentTimeout int
 
@@ -30,8 +30,8 @@ var agentCmd = &cobra.Command{
 	Short: "Run an agent to expose an internal service (target), to an external caller, via an external proxy",
 
 	Run: func(cmd *cobra.Command, args []string) {
-		if code == "" {
-			fmt.Print("Missing --code")
+		if agentCode == "" {
+			fmt.Print("Missing --agent-code")
 			return
 		}
 
@@ -44,7 +44,7 @@ var agentCmd = &cobra.Command{
 			TargetHost:      "localhost",
 			TargetPort:      targetPort,
 			TargetSendReply: targetSendReply,
-			Code:            code,
+			AgentCode:       agentCode,
 			Timeout:         agentTimeout,
 		})
 	},
@@ -61,7 +61,7 @@ func init() {
 	agentCmd.Flags().StringVar(&targetPort, "target-port", "8080", "Server port")
 	agentCmd.Flags().BoolVar(&targetSendReply, "send-reply", false, "Allow the agent to send the replies to the caller")
 
-	agentCmd.Flags().StringVar(&code, "code", "", "Uniq resource identifier")
+	agentCmd.Flags().StringVar(&agentCode, "agent-code", "", "Agent uniq resource identifier")
 	agentCmd.Flags().StringVar(&agentSecret, "secret", os.Getenv("CARONTE_SECRET"), "Shared secret. If not passed the ENV CARONTE_SECRET will be used instead.")
 	agentCmd.Flags().IntVar(&agentTimeout, "timeout", 60, "Requested timeout")
 }

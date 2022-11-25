@@ -31,7 +31,7 @@ Run the proxy in a network that accept connections from the outside
 In the same machine that runs the echo server run the agent and connect it to the proxy
 
 ```
-./caronte agent --secret SECRET --code EXAMPLE_TARGET --target-port 5000 --send-reply --proxy-host <proxy_host> --proxy-port <proxy_port>
+./caronte agent --secret SECRET --agent-code EXAMPLE_TARGET --target-port 5000 --send-reply --proxy-host <proxy_host> --proxy-port <proxy_port>
 ```
 
 Test the connection to the target, sending any request to the proxy to `<proxy_host>:<proxy_port>/forward/<target_code>/<path_on_the_target>`

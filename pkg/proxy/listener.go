@@ -40,15 +40,15 @@ func (l *Listener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	action := parts[1]
-	code := parts[2]
+	agentCode := parts[2]
 	if action == "pull" {
-		l.handlePullRequest(code, w, r)
+		l.handlePullRequest(agentCode, w, r)
 		return
 	} else if action == "forward" {
-		l.handleForwardRequest(code, w, r)
+		l.handleForwardRequest(agentCode, w, r)
 		return
 	} else if action == "forward_response" {
-		l.handleForwardResponse(code, w, r)
+		l.handleForwardResponse(agentCode, w, r)
 		return
 	}
 
