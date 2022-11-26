@@ -64,7 +64,9 @@ func Run(config Config) {
 			time.Sleep(5 * time.Second)
 		} else {
 			// TODO the following block should be moved in a dedicated function!
+			// here is a mess and tooManyAttempts is embarassing
 			responseReference := proxyResponse.Header.Get("X-RESPONSE-REFERENCE")
+			tooManyAttempts := true
 			for attempt := 1; attempt <= agentConfig.TargetMaxAttempts; attempt += 1 {
 				targetResponse, callTargetError := handleServerResponse(responseReference, proxyResponse)
 
@@ -79,6 +81,8 @@ func Run(config Config) {
 					continue
 				}
 
+				tooManyAttempts = false
+
 				var sendResponseError error
 				if agentConfig.TargetSendReply {
 					sendResponseError = forwardResponse(responseReference, targetResponse)
@@ -91,8 +95,10 @@ func Run(config Config) {
 				break
 			}
 
-			log.Printf("[ERROR] Giving up, returning an error to the proxy")
-			forwardError(responseReference)
+			if tooManyAttempts {
+				log.Printf("[ERROR] Giving up, returning an error to the proxy")
+				forwardError(responseReference)
+			}
 		}
 	}
 }
