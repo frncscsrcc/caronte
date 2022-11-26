@@ -41,7 +41,7 @@ var agentCmd = &cobra.Command{
 			ProxyPort:       proxyPort,
 			Secret:          agentSecret,
 			TargetProtocol:  targetProtocol,
-			TargetHost:      "localhost",
+			TargetHost:      targetHost,
 			TargetPort:      targetPort,
 			TargetSendReply: targetSendReply,
 			AgentCode:       agentCode,
@@ -52,13 +52,14 @@ var agentCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(agentCmd)
-	agentCmd.Flags().StringVar(&proxyProtocol, "proxy-protocol", "http", "Server protocol")
-	agentCmd.Flags().StringVar(&proxyHost, "proxy-host", "localhost", "Server host")
-	agentCmd.Flags().StringVar(&proxyPort, "proxy-port", "8080", "Server port")
+	agentCmd.Flags().StringVar(&proxyProtocol, "proxy-protocol", "http", "Proxy protocol")
+	agentCmd.Flags().StringVar(&proxyHost, "proxy-host", "localhost", "Proxy host")
+	agentCmd.Flags().StringVar(&proxyPort, "proxy-port", "8080", "Proxy port")
 
-	agentCmd.Flags().StringVar(&targetProtocol, "target-protocol", "http", "Server protocol")
-	//agentCmd.Flags().StringVar(&targetHost, "target-host", "localhost", "Server host")
-	agentCmd.Flags().StringVar(&targetPort, "target-port", "8080", "Server port")
+	agentCmd.Flags().StringVar(&targetProtocol, "target-protocol", "http", "Target protocol")
+	agentCmd.Flags().StringVar(&targetHost, "target-host", "localhost", "Target host")
+	agentCmd.Flags().StringVar(&targetPort, "target-port", "8080", "Target port")
+
 	agentCmd.Flags().BoolVar(&targetSendReply, "send-reply", false, "Allow the agent to send the replies to the caller")
 
 	agentCmd.Flags().StringVar(&agentCode, "agent-code", "", "Agent uniq resource identifier")
