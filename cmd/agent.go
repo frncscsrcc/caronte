@@ -19,6 +19,7 @@ var targetProtocol string
 var targetHost string
 var targetPort string
 var targetSendReply bool
+var targetMaxAttempts int
 
 var agentCode string
 var agentSecret string
@@ -36,16 +37,17 @@ var agentCmd = &cobra.Command{
 		}
 
 		agent.Run(agent.Config{
-			ProxyProtocol:   proxyProtocol,
-			ProxyHost:       proxyHost,
-			ProxyPort:       proxyPort,
-			Secret:          agentSecret,
-			TargetProtocol:  targetProtocol,
-			TargetHost:      targetHost,
-			TargetPort:      targetPort,
-			TargetSendReply: targetSendReply,
-			AgentCode:       agentCode,
-			Timeout:         agentTimeout,
+			ProxyProtocol:     proxyProtocol,
+			ProxyHost:         proxyHost,
+			ProxyPort:         proxyPort,
+			Secret:            agentSecret,
+			TargetProtocol:    targetProtocol,
+			TargetHost:        targetHost,
+			TargetPort:        targetPort,
+			TargetSendReply:   targetSendReply,
+			TargetMaxAttempts: targetMaxAttempts,
+			AgentCode:         agentCode,
+			Timeout:           agentTimeout,
 		})
 	},
 }
@@ -59,6 +61,7 @@ func init() {
 	agentCmd.Flags().StringVar(&targetProtocol, "target-protocol", "http", "Target protocol")
 	agentCmd.Flags().StringVar(&targetHost, "target-host", "localhost", "Target host")
 	agentCmd.Flags().StringVar(&targetPort, "target-port", "8080", "Target port")
+	agentCmd.Flags().IntVar(&targetMaxAttempts, "target-max-attempts", 5, "How many times the agent will try to call the target in case of errors")
 
 	agentCmd.Flags().BoolVar(&targetSendReply, "send-reply", false, "Allow the agent to send the replies to the caller")
 

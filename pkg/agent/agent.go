@@ -12,16 +12,17 @@ import (
 )
 
 type Config struct {
-	Secret          string
-	ProxyHost       string
-	ProxyPort       string
-	ProxyProtocol   string
-	Timeout         int
-	TargetHost      string
-	TargetPort      string
-	TargetProtocol  string
-	TargetSendReply bool
-	AgentCode       string
+	Secret            string
+	ProxyHost         string
+	ProxyPort         string
+	ProxyProtocol     string
+	Timeout           int
+	TargetHost        string
+	TargetPort        string
+	TargetProtocol    string
+	TargetSendReply   bool
+	TargetMaxAttempts int
+	AgentCode         string
 }
 
 var agentConfig Config
@@ -62,16 +63,43 @@ func Run(config Config) {
 			log.Printf("Proxy responded %d, trying again in 5 sec...", proxyResponse.StatusCode)
 			time.Sleep(5 * time.Second)
 		} else {
-			handleServerResponse(proxyResponse)
+			// TODO the following block should be moved in a dedicated function!
+			responseReference := proxyResponse.Header.Get("X-RESPONSE-REFERENCE")
+			for attempt := 1; attempt <= agentConfig.TargetMaxAttempts; attempt += 1 {
+				targetResponse, callTargetError := handleServerResponse(responseReference, proxyResponse)
+
+				if callTargetError != nil {
+					log.Printf(
+						"Target returned an error (%s), trying again in 5 sec... [attempt %d of %d]",
+						callTargetError.Error(),
+						attempt,
+						agentConfig.TargetMaxAttempts,
+					)
+					time.Sleep(5 * time.Second)
+					continue
+				}
+
+				var sendResponseError error
+				if agentConfig.TargetSendReply {
+					sendResponseError = forwardResponse(responseReference, targetResponse)
+				} else {
+					sendResponseError = forwardAck(responseReference)
+				}
+				if sendResponseError != nil {
+					log.Printf("[ERROR] Can not send the response to the proxy (%s)", sendResponseError.Error())
+				}
+				break
+			}
+
+			log.Printf("[ERROR] Giving up, returning an error to the proxy")
+			forwardError(responseReference)
 		}
 	}
-
 }
 
-func handleServerResponse(r *http.Response) error {
+func handleServerResponse(responseReference string, r *http.Response) (*http.Response, error) {
 	path := r.Header.Get("X-ORIGINAL-PATH")
 	method := r.Header.Get("X-ORIGINAL-METHOD")
-	responseReference := r.Header.Get("X-RESPONSE-REFERENCE")
 
 	url := fmt.Sprintf("%s://%s:%s",
 		agentConfig.TargetProtocol,
@@ -83,7 +111,7 @@ func handleServerResponse(r *http.Response) error {
 
 	req, err := http.NewRequest(strings.ToUpper(method), url, r.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for name, values := range r.Header {
 		for _, value := range values {
@@ -95,15 +123,10 @@ func handleServerResponse(r *http.Response) error {
 
 	response, errReq := http.DefaultClient.Do(req)
 	if errReq != nil {
-		return errReq
+		return nil, errReq
 	}
 
-	if agentConfig.TargetSendReply {
-		return forwardResponse(responseReference, response)
-	} else {
-		return forwardAck(responseReference)
-	}
-
+	return response, nil
 }
 
 func forwardAck(responceReference string) error {
@@ -114,6 +137,18 @@ func forwardAck(responceReference string) error {
 	)
 	req.Header.Set("X-RESPONSE-REFERENCE", responceReference)
 	req.Header.Set("X-STATUS", "200")
+	_, err := http.DefaultClient.Do(req)
+	return err
+}
+
+func forwardError(responceReference string) error {
+	req, _ := http.NewRequest(
+		"POST",
+		getProxyURL()+"/forward_response/"+agentConfig.AgentCode,
+		bytes.NewBuffer([]byte{}),
+	)
+	req.Header.Set("X-RESPONSE-REFERENCE", responceReference)
+	req.Header.Set("X-STATUS", "500")
 	_, err := http.DefaultClient.Do(req)
 	return err
 }
