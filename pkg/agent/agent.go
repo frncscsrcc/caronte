@@ -31,6 +31,9 @@ var agentConfig Config
 func Run(config Config) {
 	agentConfig = config
 
+	proxyURL := getProxyURL()
+	log.Printf("Agent connecting to the proxy %s", proxyURL)
+
 	for {
 		// Connect to proxy
 		proxyResponse, connectToProxyError := connectToProxy()
@@ -57,7 +60,6 @@ func getProxyURL() string {
 
 func connectToProxy() (*http.Response, error) {
 	proxyURL := getProxyURL()
-	log.Printf("Agent connecting to the proxy %s", proxyURL)
 
 	req, _ := http.NewRequest(
 		"GET",
@@ -81,6 +83,10 @@ func connectToProxy() (*http.Response, error) {
 		log.Print("[ERROR] Proxy is busy. Trying again in 5 sec...\n")
 		time.Sleep(5 * time.Second)
 		return nil, err
+	}
+
+	if proxyResponse.StatusCode == http.StatusGatewayTimeout {
+		return nil, errors.New("timeout")
 	}
 
 	if proxyResponse.StatusCode != http.StatusOK {
