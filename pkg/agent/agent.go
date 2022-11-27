@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -27,83 +28,92 @@ type Config struct {
 
 var agentConfig Config
 
+func Run(config Config) {
+	agentConfig = config
+
+	for {
+		// Connect to proxy
+		proxyResponse, connectToProxyError := connectToProxy()
+		if connectToProxyError != nil {
+			continue
+		}
+
+		// Connect to target
+		targetResponse, connectToTargetError := connectToTarget(proxyResponse)
+		if connectToTargetError != nil {
+			log.Printf("[ERROR] Too many attempts, giving up")
+			continue
+		}
+
+		// Respond to the proxy
+		responseReference := proxyResponse.Header.Get("X-RESPONSE-REFERENCE")
+		respondToProxy(responseReference, targetResponse)
+	}
+}
+
 func getProxyURL() string {
 	return fmt.Sprintf("%s://%s:%s", agentConfig.ProxyProtocol, agentConfig.ProxyHost, agentConfig.ProxyPort)
 }
 
-func Run(config Config) {
-	agentConfig = config
+func connectToProxy() (*http.Response, error) {
+	proxyURL := getProxyURL()
+	log.Printf("Agent connecting to the proxy %s", proxyURL)
 
-	serverURL := getProxyURL()
+	req, _ := http.NewRequest(
+		"GET",
+		proxyURL+"/pull/"+agentConfig.AgentCode,
+		new(bytes.Buffer),
+	)
 
-	log.Printf("Agent connecting to the proxy %s", serverURL)
-	for {
-		req, _ := http.NewRequest("GET", serverURL+"/pull/"+agentConfig.AgentCode, new(bytes.Buffer))
+	req.Header.Set("X-TIMEOUT", fmt.Sprintf("%d", agentConfig.Timeout))
+	req.Header.Set("Authorization", "Bearer: "+agentConfig.Secret)
 
-		req.Header.Set("X-TIMEOUT", fmt.Sprintf("%d", agentConfig.Timeout))
-		req.Header.Set("Authorization", "Bearer: "+agentConfig.Secret)
+	proxyResponse, err := http.DefaultClient.Do(req)
 
-		proxyResponse, err := http.DefaultClient.Do(req)
-
-		if err != nil {
-			log.Printf("[ERROR] %s. Trying again in 5 sec...\n", err.Error())
-			time.Sleep(5 * time.Second)
-			continue
-		}
-
-		if proxyResponse.StatusCode == http.StatusRequestTimeout {
-			continue
-		}
-
-		if err != nil {
-			log.Print("ERROR: " + err.Error())
-		}
-
-		if err != nil || proxyResponse.StatusCode != http.StatusOK {
-			log.Printf("Proxy responded %d, trying again in 5 sec...", proxyResponse.StatusCode)
-			time.Sleep(5 * time.Second)
-		} else {
-			// TODO the following block should be moved in a dedicated function!
-			// here is a mess and tooManyAttempts is embarassing
-			responseReference := proxyResponse.Header.Get("X-RESPONSE-REFERENCE")
-			tooManyAttempts := true
-			for attempt := 1; attempt <= agentConfig.TargetMaxAttempts; attempt += 1 {
-				targetResponse, callTargetError := handleServerResponse(responseReference, proxyResponse)
-
-				if callTargetError != nil {
-					log.Printf(
-						"Target returned an error (%s), trying again in 5 sec... [attempt %d of %d]",
-						callTargetError.Error(),
-						attempt,
-						agentConfig.TargetMaxAttempts,
-					)
-					time.Sleep(5 * time.Second)
-					continue
-				}
-
-				tooManyAttempts = false
-
-				var sendResponseError error
-				if agentConfig.TargetSendReply {
-					sendResponseError = forwardResponse(responseReference, targetResponse)
-				} else {
-					sendResponseError = forwardAck(responseReference)
-				}
-				if sendResponseError != nil {
-					log.Printf("[ERROR] Can not send the response to the proxy (%s)", sendResponseError.Error())
-				}
-				break
-			}
-
-			if tooManyAttempts {
-				log.Printf("[ERROR] Giving up, returning an error to the proxy")
-				forwardError(responseReference)
-			}
-		}
+	if err != nil {
+		log.Printf("[ERROR] %s. Trying again in 5 sec...\n", err.Error())
+		time.Sleep(5 * time.Second)
+		return nil, err
 	}
+
+	if proxyResponse.StatusCode == http.StatusTooManyRequests {
+		err := errors.New("busy")
+		log.Print("[ERROR] Proxy is busy. Trying again in 5 sec...\n")
+		time.Sleep(5 * time.Second)
+		return nil, err
+	}
+
+	if proxyResponse.StatusCode != http.StatusOK {
+		time.Sleep(5 * time.Second)
+		err := errors.New(fmt.Sprintf("proxy returned status [%d]", proxyResponse.StatusCode))
+		log.Print(err.Error())
+		return nil, err
+	}
+
+	return proxyResponse, nil
 }
 
-func handleServerResponse(responseReference string, r *http.Response) (*http.Response, error) {
+func connectToTarget(proxyResponse *http.Response) (*http.Response, error) {
+	for attempt := 1; attempt <= agentConfig.TargetMaxAttempts; attempt += 1 {
+		targetResponse, callTargetError := handleServerResponse(proxyResponse)
+
+		if callTargetError != nil {
+			log.Printf(
+				"Target returned an error (%s), trying again in 5 sec... [attempt %d of %d]",
+				callTargetError.Error(),
+				attempt,
+				agentConfig.TargetMaxAttempts,
+			)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		return targetResponse, nil
+	}
+	return nil, errors.New("too many attempts connecting to the target")
+}
+
+func handleServerResponse(r *http.Response) (*http.Response, error) {
 	path := r.Header.Get("X-ORIGINAL-PATH")
 	method := r.Header.Get("X-ORIGINAL-METHOD")
 
@@ -125,14 +135,28 @@ func handleServerResponse(responseReference string, r *http.Response) (*http.Res
 		}
 	}
 
-	log.Printf("Forwarding request to the target %s\n", url)
-
 	response, errReq := http.DefaultClient.Do(req)
 	if errReq != nil {
 		return nil, errReq
 	}
 
 	return response, nil
+}
+
+func respondToProxy(responseReference string, targetResponse *http.Response) error {
+	var sendResponseError error
+
+	if agentConfig.TargetSendReply {
+		sendResponseError = forwardResponse(responseReference, targetResponse)
+	} else {
+		sendResponseError = forwardAck(responseReference)
+	}
+
+	if sendResponseError != nil {
+		log.Printf("[ERROR] Can not send the response to the proxy (%s)", sendResponseError.Error())
+	}
+
+	return sendResponseError
 }
 
 func forwardAck(responceReference string) error {
